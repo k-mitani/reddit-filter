@@ -8,8 +8,10 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
     MemorySize: 128
+    Timeout: 60
+    Runtime: python3.9
+    Architectures: ["arm64"]
 
 Resources:
   RedditEntryTable:
@@ -24,9 +26,6 @@ Resources:
     Properties:
       CodeUri: hello_world/
       Handler: app.lambda_handler
-      Timeout: 60
-      Runtime: python3.9
-      Architectures: ["arm64"]
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RedditEntryTable
@@ -35,8 +34,54 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(4 hours)
+  GenerateFeedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello_world/
+      Handler: app_generate_feed.lambda_handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref RedditFeedBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RedditEntryTable
+      Events:
+        TeikiJikko:
+          Type: Schedule
+          Properties:
+            Schedule: rate(24 hours)
+  RedditFeedBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: myfeeds-jh2694gn
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: False
+        BlockPublicPolicy: False
+        IgnorePublicAcls: False
+        RestrictPublicBuckets: False
+  RedditFeedBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref RedditFeedBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource:
+              Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Ref: 'RedditFeedBucket'
+                  - '/public/*'
+
 
 Outputs:
+  RedditFeedBucket:
+    Description: "Reddit Feed Bucket Name"
+    Value: !Ref RedditFeedBucket
   RedditEntryTable:
     Description: "Reddit Entry Table Name"
     Value: !Ref RedditEntryTable

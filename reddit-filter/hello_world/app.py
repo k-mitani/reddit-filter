@@ -1,4 +1,3 @@
-print("test")
 import urllib.request
 import xml.etree.ElementTree as ET
 import json
@@ -13,6 +12,7 @@ table = dynamodb.Table('RedditEntry')
 
 @dataclass
 class RedditRssEntry:
+    tag: str
     author: str
     updated: str
     published: str
@@ -21,7 +21,7 @@ class RedditRssEntry:
     link: str
 
 
-def fetch_entries(url: str) -> list[RedditRssEntry]:
+def fetch_entries(tag: str, url: str) -> list[RedditRssEntry]:
     rss = urllib.request.urlopen(url).read()
     root = ET.fromstring(rss)
     # entory要素を抜き出す。
@@ -34,23 +34,23 @@ def fetch_entries(url: str) -> list[RedditRssEntry]:
         updated = child.find("{http://www.w3.org/2005/Atom}updated").text
         published = child.find("{http://www.w3.org/2005/Atom}published").text
         link = child.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
-        result = RedditRssEntry(author, updated, published, title, content, link)
+        result = RedditRssEntry(tag, author, updated, published, title, content, link)
         results.append(result)
     return results
 
 
 def lambda_handler(event, context):
-    URL_LIST = [
-        "https://www.reddit.com/r/Unity3D.rss",
-        "https://www.reddit.com/r/unity.rss",
-        "https://www.reddit.com/r/playmygame.rss",
-        "https://www.reddit.com/r/indiegames.rss",
-        "https://www.reddit.com/r/gamedev.rss",
-    ]
+    URL_DICT = {
+        "Unity3D": "https://www.reddit.com/r/Unity3D.rss",
+        "unity": "https://www.reddit.com/r/unity.rss",
+        "playmygame": "https://www.reddit.com/r/playmygame.rss",
+        "indiegames": "https://www.reddit.com/r/indiegames.rss",
+        "gamedev": "https://www.reddit.com/r/gamedev.rss",
+    }
     entries = []
-    for i, url in enumerate(URL_LIST):
-        print(f"fetching {i + 1}...")
-        res = fetch_entries(url)
+    for i, (tag, url) in enumerate(URL_DICT.items()):
+        print(f"fetching {i + 1} {tag}...")
+        res = fetch_entries(tag, url)
         entries.extend(res)
         sleep(2)
     
@@ -60,8 +60,9 @@ def lambda_handler(event, context):
         try:
             result = table.update_item(
                 Key={"entry_url": entry.link},
-                UpdateExpression="SET author = :author, title = :title, updated = :updated, published = :published, content = :content",
+                UpdateExpression="SET tag = :tag, author = :author, title = :title, updated = :updated, published = :published, content = :content",
                 ExpressionAttributeValues={
+                    ':tag': entry.tag,
                     ':author': entry.author,
                     ':title': entry.title,
                     ':updated': entry.updated,
