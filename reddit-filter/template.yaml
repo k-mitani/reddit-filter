@@ -12,28 +12,37 @@ Globals:
     MemorySize: 128
 
 Resources:
+  RedditEntryTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: RedditEntry
+      PrimaryKey: 
+        Name: entry_url
+        Type: String
   HelloWorldFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: hello_world/
       Handler: app.lambda_handler
+      Timeout: 60
       Runtime: python3.9
-      Architectures:
-        - x86_64
+      Architectures: ["arm64"]
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RedditEntryTable
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        TeikiJikko:
+          Type: Schedule
           Properties:
-            Path: /hello
-            Method: get
+            Schedule: rate(4 hours)
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  RedditEntryTable:
+    Description: "Reddit Entry Table Name"
+    Value: !Ref RedditEntryTable
+  TeikiJikkoEvent:
+    Description: "定期実行イベント"
+    Value: !Ref HelloWorldFunctionTeikiJikko
   HelloWorldFunction:
     Description: "Hello World Lambda Function ARN"
     Value: !GetAtt HelloWorldFunction.Arn
