@@ -4,10 +4,10 @@ import json
 from dataclasses import dataclass
 import boto3
 from time import sleep
-# dynamodb
-dynamodb = boto3.resource('dynamodb', region_name="ap-northeast-1")
-table = dynamodb.Table('RedditEntry')
+import os
 
+dynamodb = boto3.resource('dynamodb', region_name="ap-northeast-1")
+table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 
 @dataclass
@@ -53,7 +53,7 @@ def lambda_handler(event, context):
         res = fetch_entries(tag, url)
         entries.extend(res)
         sleep(2)
-    
+
     # dynamodbに保存する。
     consumed_capacity = 0
     for entry in entries:

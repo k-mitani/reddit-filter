@@ -12,8 +12,13 @@ Globals:
     Timeout: 60
     Runtime: python3.9
     Architectures: ["arm64"]
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref RedditEntryTable
+        BUCKET_NAME: !Ref RedditFeedBucket
 
 Resources:
+  # エントリー保存用テーブル
   RedditEntryTable:
     Type: AWS::Serverless::SimpleTable
     Properties:
@@ -21,6 +26,7 @@ Resources:
       PrimaryKey: 
         Name: entry_url
         Type: String
+  # RSS取得関数
   HelloWorldFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -34,6 +40,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(4 hours)
+  # フィード生成関数
   GenerateFeedFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -48,11 +55,11 @@ Resources:
         TeikiJikko:
           Type: Schedule
           Properties:
-            Schedule: rate(24 hours)
+            Schedule: cron(0 21 * * ? *) # 6:00 JST
+  # フィード保存用バケット
   RedditFeedBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: myfeeds-jh2694gn
       VersioningConfiguration:
         Status: Enabled
       PublicAccessBlockConfiguration:
@@ -70,13 +77,7 @@ Resources:
           - Effect: Allow
             Principal: '*'
             Action: 's3:GetObject'
-            Resource:
-              Fn::Join:
-                - ''
-                - - 'arn:aws:s3:::'
-                  - Ref: 'RedditFeedBucket'
-                  - '/public/*'
-
+            Resource: !Sub 'arn:aws:s3:::${RedditFeedBucket}/public/*'
 
 Outputs:
   RedditFeedBucket:

@@ -1,8 +1,14 @@
 from datetime import datetime
 from feedgen.feed import FeedGenerator
 import boto3
+import os
+
 dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
-table = dynamodb.Table('RedditEntry')
+table = dynamodb.Table(os.environ['TABLE_NAME'])
+
+s3 = boto3.resource('s3')
+bucket = s3.Bucket(os.environ['BUCKET_NAME'])
+
 
 def lambda_handler(event, context):
     current_from_epoch = int(datetime.now().strftime('%s'))
@@ -30,8 +36,6 @@ def lambda_handler(event, context):
     filecontent = fg.rss_str()
 
     # s3へ保存する。
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket('myfeeds-jh2694gn')
     bucket.put_object(Key='public/rexxit.rss', Body=filecontent, ContentType='application/rss+xml')
 
     # dynamodbに書き込み時間を記録する。
