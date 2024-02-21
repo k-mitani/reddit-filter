@@ -11,14 +11,18 @@ bucket = s3.Bucket(os.environ['BUCKET_NAME'])
 
 
 def lambda_handler(event, context):
-    current_from_epoch = int(datetime.now().strftime('%s'))
-
+    current_from_epoch = int(datetime.now().timestamp())
     # rss_write_timeがない、または2日以内のものを取得する。
-    limit_from_epoch = current_from_epoch - 60 * 60 * 24 * 2
+    limit_from_epoch = current_from_epoch - 60 * 60 * 24 * 2 + 60 * 60
+    # published_epochが1日以上経っているものを取得する。
+    target_from_epoch = current_from_epoch - 60 * 60 * 24
     res = table.scan(
-        ProjectionExpression="entry_url, tag, title, published, author, rss_write_time",
-        FilterExpression="attribute_not_exists(rss_write_time) OR rss_write_time > :limit_from_epoch",
-        ExpressionAttributeValues={":limit_from_epoch": limit_from_epoch},
+        ProjectionExpression="entry_url, tag, title, published, published_epoch, author, rss_write_time",
+        FilterExpression="(published_epoch < :target_from_epoch) AND (attribute_not_exists(rss_write_time) OR rss_write_time > :limit_from_epoch)",
+        ExpressionAttributeValues={
+            ":limit_from_epoch": limit_from_epoch,
+            ":target_from_epoch": target_from_epoch,
+        },
         ReturnConsumedCapacity='TOTAL',
     )
 
